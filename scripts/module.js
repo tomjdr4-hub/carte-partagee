@@ -31,14 +31,47 @@ function escapeHTML(value) {
     .replaceAll("'", "&#039;");
 }
 
-function getComments(annotationId) {
-  return game.journal
-    .filter(entry => entry.getFlag(MODULE_ID, "annotationId") === annotationId)
-    .map(entry => ({
-      title: entry.name,
-      text: entry.getFlag(MODULE_ID, "commentText") ?? "",
-      author: entry.getFlag(MODULE_ID, "authorName") ?? ""
-    }));
+const FOLDER_NAME = "Carte partagée";
+
+/** Journal personnel d'un utilisateur : seuls lui et le MJ peuvent le lire. */
+function getNotesJournal(userId = game.user.id) {
+  return game.journal.find(entry => entry.getFlag(MODULE_ID, "ownerId") === userId) ?? null;
+}
+
+function getNotePage(annotationId) {
+  return getNotesJournal()?.pages.find(page => page.getFlag(MODULE_ID, "annotationId") === annotationId) ?? null;
+}
+
+async function getNotesFolder() {
+  const existing = game.folders.find(f => f.type === "JournalEntry" && f.getFlag(MODULE_ID, "notesFolder"));
+  if (existing || !game.user.isGM) return existing ?? null;
+  return Folder.create({ name: FOLDER_NAME, type: "JournalEntry", flags: { [MODULE_ID]: { notesFolder: true } } });
+}
+
+async function createNotesJournal(user) {
+  const folder = await getNotesFolder();
+  return JournalEntry.create({
+    name: `Notes de ${user.name}`,
+    folder: folder?.id ?? null,
+    ownership: {
+      default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE,
+      [user.id]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER
+    },
+    flags: { [MODULE_ID]: { ownerId: user.id } }
+  });
+}
+
+/** Côté MJ : crée les journaux manquants et rend privés les commentaires de la v1.1. */
+async function ensureNotesJournals() {
+  if (game.users.activeGM !== game.user) return;
+  for (const user of game.users) {
+    if (!user.isGM && !getNotesJournal(user.id)) await createNotesJournal(user);
+  }
+  const legacy = game.journal.filter(entry =>
+    entry.getFlag(MODULE_ID, "annotationId") && entry.ownership.default > CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE);
+  for (const entry of legacy) {
+    await entry.update({ "ownership.default": CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE });
+  }
 }
 
 class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -81,7 +114,7 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
       left: `${annotation.x / 10}%`,
       top: `${annotation.y / 10}%`,
       points: annotation.points?.map(point => `${point.x},${point.y}`).join(" ") ?? "",
-      comments: getComments(annotation.id),
+      hasNote: Boolean(getNotePage(annotation.id)),
       commentDraft: this.commentDrafts[annotation.id] ?? "",
       isEditing: this.editingId === annotation.id
     }));
@@ -137,7 +170,8 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.render();
       return;
     }
-    if (action === "save-comment") return this.#createComment(annotationId);
+    if (action === "save-comment") return this.#saveNote(annotationId);
+    if (action === "open-note") return this.#openNote(annotationId);
     if (!game.user.isGM) return;
 
     switch (action) {
@@ -170,8 +204,10 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!file) return;
 
     try {
-      const folder = `worlds/${game.world.id}`;
-      const result = await foundry.applications.apps.FilePicker.implementation.upload("data", folder, file);
+      const picker = foundry.applications.apps.FilePicker.implementation;
+      const folder = `worlds/${game.world.id}/${MODULE_ID}`;
+      await picker.createDirectory("data", folder).catch(() => {}); // existe déjà
+      const result = await picker.upload("data", folder, file);
       await this.#setImage(result.path);
       ui.notifications.info("Carte importée.");
     } catch (error) {
@@ -182,9 +218,10 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   #mapPoint(event, stage) {
     const bounds = stage.getBoundingClientRect();
+    const clamp = value => Math.round(Math.max(0, Math.min(1000, value)) * 10) / 10;
     return {
-      x: Math.max(0, Math.min(1000, ((event.clientX - bounds.left) / bounds.width) * 1000)),
-      y: Math.max(0, Math.min(1000, ((event.clientY - bounds.top) / bounds.height) * 1000))
+      x: clamp(((event.clientX - bounds.left) / bounds.width) * 1000),
+      y: clamp(((event.clientY - bounds.top) / bounds.height) * 1000)
     };
   }
 
@@ -229,7 +266,10 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!this.drawing.length) return;
     const stage = event.target.closest(".cp-map-stage");
     if (!stage) return;
-    this.drawing.push(this.#mapPoint(event, stage));
+    const point = this.#mapPoint(event, stage);
+    const last = this.drawing.at(-1);
+    if (Math.hypot(point.x - last.x, point.y - last.y) < 3) return;
+    this.drawing.push(point);
 
     const preview = this.element.querySelector("[data-drawing-preview]");
     if (preview) preview.setAttribute("points", this.drawing.map(point => `${point.x},${point.y}`).join(" "));
@@ -344,44 +384,50 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.render();
   }
 
-  async #createComment(annotationId) {
+  async #saveNote(annotationId) {
     const map = this.#currentMap(getState());
     const annotation = map?.annotations.find(item => item.id === annotationId);
     const field = this.element.querySelector(`[data-comment="${CSS.escape(annotationId)}"]`);
     const text = field?.value.trim();
     if (!annotation || !text) {
-      ui.notifications.warn("Écrivez un commentaire avant de l'enregistrer.");
+      ui.notifications.warn("Écrivez une note avant de l'enregistrer.");
       return;
     }
 
+    let journal = getNotesJournal();
+    if (!journal && (game.user.isGM || game.user.can("JOURNAL_CREATE"))) journal = await createNotesJournal(game.user);
+    if (!journal) {
+      ui.notifications.warn("Votre journal de notes n'existe pas encore : le MJ doit se connecter une fois avec le module activé.");
+      return;
+    }
+
+    const date = new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+    const paragraph = `<p><em>${date}</em><br>${escapeHTML(text).replaceAll("\n", "<br>")}</p>`;
+
     try {
-      const safeText = escapeHTML(text).replaceAll("\n", "<br>");
-      await JournalEntry.create({
-        name: `${annotation.title} — ${game.user.name}`,
-        pages: [{
-          name: "Commentaire",
+      const page = getNotePage(annotationId);
+      if (page) {
+        await page.update({ "text.content": `${page.text.content ?? ""}${paragraph}` });
+      } else {
+        await journal.createEmbeddedDocuments("JournalEntryPage", [{
+          name: `${annotation.title} (${map.name})`,
           type: "text",
-          text: { format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML, content: `<p>${safeText}</p>` }
-        }],
-        ownership: {
-          default: CONST.DOCUMENT_OWNERSHIP_LEVELS.OBSERVER,
-          [game.user.id]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER
-        },
-        flags: {
-          [MODULE_ID]: {
-            annotationId,
-            mapId: map.id,
-            commentText: text,
-            authorName: game.user.name
-          }
-        }
-      });
+          text: { format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML, content: paragraph },
+          flags: { [MODULE_ID]: { annotationId, mapId: map.id } }
+        }]);
+      }
       delete this.commentDrafts[annotationId];
+      ui.notifications.info(`Note ajoutée à « ${journal.name} ».`);
       this.render();
     } catch (error) {
-      console.error(`${MODULE_ID} | Échec de création de l'entrée de journal`, error);
-      ui.notifications.error("Foundry n'autorise pas la création d'entrées de journal pour ce rôle.");
+      console.error(`${MODULE_ID} | Échec d'enregistrement de la note`, error);
+      ui.notifications.error("Impossible d'enregistrer la note dans votre journal.");
     }
+  }
+
+  #openNote(annotationId) {
+    const page = getNotePage(annotationId);
+    if (page) page.parent.sheet.render({ force: true, pageId: page.id });
   }
 }
 
@@ -424,10 +470,13 @@ Hooks.once("init", () => {
 Hooks.once("ready", () => {
   game.modules.get(MODULE_ID).api = { openMap };
   createButton();
+  ensureNotesJournals();
 });
 
-for (const hook of ["createJournalEntry", "updateJournalEntry", "deleteJournalEntry"]) {
-  Hooks.on(hook, entry => {
-    if (entry.getFlag(MODULE_ID, "annotationId")) refreshMap();
+Hooks.on("createUser", () => ensureNotesJournals());
+
+for (const hook of ["createJournalEntryPage", "deleteJournalEntryPage"]) {
+  Hooks.on(hook, page => {
+    if (page.getFlag(MODULE_ID, "annotationId")) refreshMap();
   });
 }

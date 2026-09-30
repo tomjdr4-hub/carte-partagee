@@ -90,11 +90,13 @@
         </div>
         {{#if this.description}}<p class="cp-description">{{this.description}}</p>{{/if}}
         {{/if}}
-        {{#each this.comments}}
-        <div class="cp-comment"><p>{{this.text}}</p><small>{{this.author}}</small></div>
-        {{/each}}
-        <textarea data-comment="{{this.id}}" rows="2" placeholder="Votre commentaire dans le journal…" aria-label="Commentaire sur {{this.title}}">{{this.commentDraft}}</textarea>
-        <button type="button" data-action="save-comment" data-annotation-id="{{this.id}}"><i class="fa-solid fa-book-journal-whills"></i><span>Ajouter au journal</span></button>
+        <textarea data-comment="{{this.id}}" rows="2" placeholder="Ma note personnelle (visible par moi et le MJ)…" aria-label="Note sur {{this.title}}">{{this.commentDraft}}</textarea>
+        <div class="cp-row">
+          <button type="button" data-action="save-comment" data-annotation-id="{{this.id}}"><i class="fa-solid fa-book-journal-whills"></i><span>Ajouter à mes notes</span></button>
+          {{#if this.hasNote}}
+          <button type="button" class="cp-open-note" data-action="open-note" data-annotation-id="{{this.id}}" title="Ouvrir ma note dans le journal"><i class="fa-solid fa-book-open"></i></button>
+          {{/if}}
+        </div>
       </article>
       {{else}}
       <p class="cp-no-annotations">Aucune annotation pour le moment.</p>

@@ -317,23 +317,6 @@ button.cp-danger:hover {
   font-size: 0.85rem;
 }
 
-.cp-comment {
-  margin: 7px 0;
-  padding: 7px;
-  border-radius: 3px;
-  background: #edf1eb;
-  overflow-wrap: anywhere;
-}
-
-.cp-comment p {
-  margin: 0 0 4px;
-  white-space: pre-wrap;
-}
-
-.cp-comment small {
-  color: #63716b;
-}
-
 .cp-annotation textarea {
   box-sizing: border-box;
   width: 100%;
@@ -378,6 +361,10 @@ button.cp-danger:hover {
 
 .cp-row button {
   flex: 1;
+}
+
+.cp-row button.cp-open-note {
+  flex: 0 0 auto;
 }
 
 .cp-no-annotations {
