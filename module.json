@@ -2,7 +2,7 @@
   "id": "carte-partagee",
   "title": "Carte partagée",
   "description": "Carte collaborative avec épingles, zones dessinées et commentaires joueurs dans le journal.",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "compatibility": {
     "minimum": "14",
     "verified": "14",
@@ -15,7 +15,7 @@
   ],
   "url": "https://github.com/tomjdr4-hub/carte-partagee",
   "manifest": "https://github.com/tomjdr4-hub/carte-partagee/releases/latest/download/module.json",
-  "download": "https://github.com/tomjdr4-hub/carte-partagee/releases/download/v1.0.1/module.zip",
+  "download": "https://github.com/tomjdr4-hub/carte-partagee/releases/download/v1.1.0/module.zip",
   "readme": "https://github.com/tomjdr4-hub/carte-partagee/blob/main/README.md",
   "bugs": "https://github.com/tomjdr4-hub/carte-partagee/issues",
   "esmodules": [

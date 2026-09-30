@@ -1,11 +1,21 @@
 const MODULE_ID = "carte-partagee";
 const SETTING_KEY = "mapState";
-const DEFAULT_STATE = { image: "", annotations: [] };
+const DEFAULT_STATE = { maps: [] };
 
-const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { ApplicationV2, HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
 
+function newMap(name) {
+  return { id: foundry.utils.randomID(), name, image: "", annotations: [] };
+}
+
+/** Lit l'état et convertit l'ancien format (une seule carte) si besoin. */
 function getState() {
-  return foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTING_KEY) ?? DEFAULT_STATE);
+  const raw = foundry.utils.deepClone(game.settings.get(MODULE_ID, SETTING_KEY) ?? DEFAULT_STATE);
+  if (Array.isArray(raw.maps)) return raw;
+  const legacy = newMap("Carte 1");
+  legacy.image = raw.image ?? "";
+  legacy.annotations = raw.annotations ?? [];
+  return { maps: legacy.image || legacy.annotations.length ? [legacy] : [] };
 }
 
 async function saveState(state) {
@@ -40,7 +50,7 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
       icon: "fa-solid fa-map",
       resizable: true
     },
-    position: { width: 1050, height: 760 },
+    position: { width: 1100, height: 780 },
     actions: {}
   };
 
@@ -49,24 +59,42 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
   };
 
   tool = "select";
+  mapId = null;
+  editingId = null;
   drawing = [];
+  dragging = null;
+  /** Saisies en cours, conservées entre deux rendus. */
+  draft = { title: "", description: "" };
+  commentDrafts = {};
+
+  #currentMap(state) {
+    const map = state.maps.find(m => m.id === this.mapId) ?? state.maps[0] ?? null;
+    this.mapId = map?.id ?? null;
+    return map;
+  }
 
   async _prepareContext() {
     const state = getState();
-    const annotations = state.annotations.map(annotation => ({
+    const map = this.#currentMap(state);
+    const annotations = (map?.annotations ?? []).map(annotation => ({
       ...annotation,
       left: `${annotation.x / 10}%`,
       top: `${annotation.y / 10}%`,
       points: annotation.points?.map(point => `${point.x},${point.y}`).join(" ") ?? "",
-      comments: getComments(annotation.id)
+      comments: getComments(annotation.id),
+      commentDraft: this.commentDrafts[annotation.id] ?? "",
+      isEditing: this.editingId === annotation.id
     }));
 
     return {
-      image: state.image,
-      hasImage: Boolean(state.image),
+      maps: state.maps.map(m => ({ id: m.id, name: m.name, active: m.id === this.mapId })),
+      hasMaps: state.maps.length > 0,
+      map,
+      hasImage: Boolean(map?.image),
       isGM: game.user.isGM,
       annotations,
-      selectedTool: this.tool
+      selectedTool: this.tool,
+      draft: this.draft
     };
   }
 
@@ -76,38 +104,68 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     root.onclick = event => this.#onClick(event);
     root.onchange = event => this.#onChange(event);
+    root.oninput = event => this.#onInput(event);
     root.onpointerdown = event => this.#onPointerDown(event);
     root.onpointermove = event => this.#onPointerMove(event);
     root.onpointerup = event => this.#onPointerUp(event);
   }
 
+  #onInput(event) {
+    const target = event.target;
+    if (target.matches("[data-annotation-title]")) this.draft.title = target.value;
+    else if (target.matches("[data-annotation-description]")) this.draft.description = target.value;
+    else if (target.matches("[data-comment]")) this.commentDrafts[target.dataset.comment] = target.value;
+  }
+
   async #onClick(event) {
+    const actionEl = event.target.closest("[data-action]");
     const toolButton = event.target.closest("button[data-tool]");
+
     if (toolButton && game.user.isGM) {
       this.tool = toolButton.dataset.tool;
       this.render();
       return;
     }
+    if (!actionEl) return;
 
-    const uploadButton = event.target.closest('[data-action="choose-image"]');
-    if (uploadButton && game.user.isGM) {
-      this.element.querySelector("[data-image-file]")?.click();
+    const { action } = actionEl.dataset;
+    const annotationId = actionEl.dataset.annotationId;
+
+    if (action === "select-map") {
+      this.mapId = actionEl.dataset.mapId;
+      this.editingId = null;
+      this.render();
       return;
     }
+    if (action === "save-comment") return this.#createComment(annotationId);
+    if (!game.user.isGM) return;
 
-    const setImageButton = event.target.closest('[data-action="set-image-url"]');
-    if (setImageButton && game.user.isGM) {
-      const image = this.element.querySelector("[data-image-url]")?.value.trim();
-      if (image) await this.#setImage(image);
-      return;
+    switch (action) {
+      case "add-map": return this.#addMap();
+      case "delete-map": return this.#deleteMap();
+      case "choose-image": this.element.querySelector("[data-image-file]")?.click(); return;
+      case "set-image-url": {
+        const image = this.element.querySelector("[data-image-url]")?.value.trim();
+        if (image) await this.#setImage(image);
+        return;
+      }
+      case "edit-annotation": this.editingId = annotationId; this.render(); return;
+      case "cancel-edit": this.editingId = null; this.render(); return;
+      case "save-annotation": return this.#saveAnnotation(annotationId);
+      case "delete-annotation": return this.#deleteAnnotation(annotationId);
     }
-
-    const commentButton = event.target.closest('[data-action="save-comment"]');
-    if (commentButton) await this.#createComment(commentButton.dataset.annotationId);
   }
 
   async #onChange(event) {
-    if (!event.target.matches("[data-image-file]") || !game.user.isGM) return;
+    if (!game.user.isGM) return;
+
+    if (event.target.matches("[data-map-name]")) {
+      const name = event.target.value.trim();
+      if (name) await this.#updateMap(map => { map.name = name; });
+      return;
+    }
+
+    if (!event.target.matches("[data-image-file]")) return;
     const [file] = event.target.files ?? [];
     if (!file) return;
 
@@ -131,19 +189,23 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async #onPointerDown(event) {
-    if (!game.user.isGM || !event.target.closest(".cp-map-stage")) return;
-    if (event.target.closest(".cp-pin")) return;
-
+    if (!game.user.isGM || event.button !== 0) return;
     const stage = event.target.closest(".cp-map-stage");
+    if (!stage) return;
+
+    // Outil sélection : on peut déplacer une épingle existante.
+    const pin = event.target.closest(".cp-pin");
+    if (pin) {
+      if (this.tool !== "select") return;
+      event.preventDefault();
+      stage.setPointerCapture(event.pointerId);
+      this.dragging = { id: pin.dataset.annotationId, element: pin, stage, moved: false };
+      return;
+    }
+
     if (this.tool === "pin") {
       const point = this.#mapPoint(event, stage);
-      const title = this.element.querySelector("[data-annotation-title]")?.value.trim() || "Nouvelle épingle";
-      const description = this.element.querySelector("[data-annotation-description]")?.value.trim() || "";
-      const state = getState();
-      state.annotations.push({ id: foundry.utils.randomID(), type: "pin", title, description, ...point });
-      await saveState(state);
-      this.tool = "select";
-      this.render();
+      await this.#addAnnotation({ type: "pin", ...point }, "Nouvelle épingle");
       return;
     }
 
@@ -154,6 +216,16 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   #onPointerMove(event) {
+    if (this.dragging) {
+      const { element, stage } = this.dragging;
+      const point = this.#mapPoint(event, stage);
+      element.style.left = `${point.x / 10}%`;
+      element.style.top = `${point.y / 10}%`;
+      this.dragging.point = point;
+      this.dragging.moved = true;
+      return;
+    }
+
     if (!this.drawing.length) return;
     const stage = event.target.closest(".cp-map-stage");
     if (!stage) return;
@@ -164,30 +236,117 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async #onPointerUp() {
-    if (this.drawing.length < 3) {
-      this.drawing = [];
+    if (this.dragging) {
+      const { id, moved, point } = this.dragging;
+      this.dragging = null;
+      if (moved && point) {
+        await this.#updateMap(map => {
+          const annotation = map.annotations.find(a => a.id === id);
+          if (annotation) Object.assign(annotation, point);
+        });
+      }
       return;
     }
 
-    const title = this.element.querySelector("[data-annotation-title]")?.value.trim() || "Nouvelle zone";
-    const description = this.element.querySelector("[data-annotation-description]")?.value.trim() || "";
-    const state = getState();
-    state.annotations.push({ id: foundry.utils.randomID(), type: "area", title, description, points: this.drawing });
+    if (!this.drawing.length) return;
+    const points = this.drawing;
     this.drawing = [];
+    if (points.length < 3) {
+      this.render();
+      return;
+    }
+    await this.#addAnnotation({ type: "area", points }, "Nouvelle zone");
+  }
+
+  /** Applique une modification à la carte affichée puis enregistre. */
+  async #updateMap(mutate) {
+    const state = getState();
+    const map = this.#currentMap(state);
+    if (!map) return;
+    mutate(map, state);
     await saveState(state);
+  }
+
+  async #addAnnotation(data, defaultTitle) {
+    if (!this.mapId) return;
+    const title = this.draft.title.trim() || defaultTitle;
+    const description = this.draft.description.trim();
+    await this.#updateMap(map => {
+      map.annotations.push({ id: foundry.utils.randomID(), title, description, ...data });
+    });
+    this.draft = { title: "", description: "" };
     this.tool = "select";
+    this.render();
+  }
+
+  async #saveAnnotation(annotationId) {
+    const card = this.element.querySelector(`.cp-annotation[data-annotation-id="${CSS.escape(annotationId)}"]`);
+    const title = card?.querySelector("[data-edit-title]")?.value.trim();
+    const description = card?.querySelector("[data-edit-description]")?.value.trim() ?? "";
+    if (!title) {
+      ui.notifications.warn("Le titre ne peut pas être vide.");
+      return;
+    }
+    this.editingId = null;
+    await this.#updateMap(map => {
+      const annotation = map.annotations.find(a => a.id === annotationId);
+      if (annotation) Object.assign(annotation, { title, description });
+    });
+    this.render();
+  }
+
+  async #deleteAnnotation(annotationId) {
+    const confirmed = await DialogV2.confirm({
+      window: { title: "Supprimer l'annotation" },
+      content: "<p>Supprimer cette annotation ? Les commentaires déjà créés restent dans le journal.</p>"
+    });
+    if (!confirmed) return;
+    await this.#updateMap(map => {
+      map.annotations = map.annotations.filter(a => a.id !== annotationId);
+    });
+    this.render();
+  }
+
+  async #addMap() {
+    const state = getState();
+    const map = newMap(`Carte ${state.maps.length + 1}`);
+    state.maps.push(map);
+    await saveState(state);
+    this.mapId = map.id;
+    this.render();
+  }
+
+  async #deleteMap() {
+    const state = getState();
+    const map = this.#currentMap(state);
+    if (!map) return;
+    const confirmed = await DialogV2.confirm({
+      window: { title: "Supprimer la carte" },
+      content: `<p>Supprimer la carte « ${escapeHTML(map.name)} » et toutes ses annotations ? Les commentaires restent dans le journal.</p>`
+    });
+    if (!confirmed) return;
+    state.maps = state.maps.filter(m => m.id !== map.id);
+    await saveState(state);
+    this.mapId = null;
     this.render();
   }
 
   async #setImage(image) {
     const state = getState();
-    state.image = image;
+    let map = this.#currentMap(state);
+    if (!map) {
+      map = newMap("Carte 1");
+      state.maps.push(map);
+      this.mapId = map.id;
+    }
+    map.image = image;
     await saveState(state);
     this.render();
   }
 
   async #createComment(annotationId) {
-    const annotation = getState().annotations.find(item => item.id === annotationId);
+    const map = this.#currentMap(getState());
+    const annotation = map?.annotations.find(item => item.id === annotationId);
     const field = this.element.querySelector(`[data-comment="${CSS.escape(annotationId)}"]`);
     const text = field?.value.trim();
     if (!annotation || !text) {
@@ -211,11 +370,13 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
         flags: {
           [MODULE_ID]: {
             annotationId,
+            mapId: map.id,
             commentText: text,
             authorName: game.user.name
           }
         }
       });
+      delete this.commentDrafts[annotationId];
       this.render();
     } catch (error) {
       console.error(`${MODULE_ID} | Échec de création de l'entrée de journal`, error);
@@ -229,6 +390,12 @@ let mapApp;
 function openMap() {
   mapApp ??= new CartePartageeApp();
   mapApp.render({ force: true });
+}
+
+/** Rafraîchit la fenêtre ouverte, sauf pendant un tracé ou un déplacement. */
+function refreshMap() {
+  if (!mapApp?.rendered || mapApp.drawing.length || mapApp.dragging) return;
+  mapApp.render();
 }
 
 function createButton() {
@@ -249,7 +416,8 @@ Hooks.once("init", () => {
     scope: "world",
     config: false,
     type: Object,
-    default: DEFAULT_STATE
+    default: DEFAULT_STATE,
+    onChange: refreshMap
   });
 });
 
@@ -257,3 +425,9 @@ Hooks.once("ready", () => {
   game.modules.get(MODULE_ID).api = { openMap };
   createButton();
 });
+
+for (const hook of ["createJournalEntry", "updateJournalEntry", "deleteJournalEntry"]) {
+  Hooks.on(hook, entry => {
+    if (entry.getFlag(MODULE_ID, "annotationId")) refreshMap();
+  });
+}

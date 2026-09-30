@@ -76,7 +76,7 @@
 
 .cp-toolbar input {
   min-width: 100px;
-  max-width: 190px;
+  max-width: 180px;
   height: 30px;
   padding: 4px 7px;
   border: 1px solid #b8b1a3;
@@ -84,11 +84,55 @@
   background: white;
 }
 
-.cp-divider {
-  width: 1px;
-  height: 25px;
-  margin: 0 3px;
-  background: #c5beb0;
+.cp-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cp-toolbar {
+  column-gap: 18px;
+}
+
+.cp-map-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 7px 9px 0;
+  border-bottom: 1px solid #c5beb0;
+  background: #e2ddd2;
+}
+
+.cp-map-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: -1px;
+  padding: 5px 12px;
+  border: 1px solid #c5beb0;
+  border-radius: 5px 5px 0 0;
+  background: #ece8df;
+  color: #4a5552;
+  cursor: pointer;
+}
+
+.cp-map-tab.is-active {
+  border-bottom-color: #f6f3ec;
+  background: #f6f3ec;
+  color: #263b3a;
+  font-weight: 700;
+}
+
+.cp-map-add {
+  border-style: dashed;
+  background: transparent;
+}
+
+button.cp-danger:hover {
+  border-color: #a93428 !important;
+  background: #f5dcd6 !important;
+  color: #8a2a20;
 }
 
 .cp-map-frame {
@@ -146,28 +190,55 @@
   stroke-dasharray: 7 5;
 }
 
+/* Le conteneur fait 0x0 : son coin haut-gauche est exactement le point cliqué. */
 .cp-pin {
   position: absolute;
   z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transform: translate(-50%, -95%);
-  color: #a93428;
-  font-size: 22px;
+  width: 0;
+  height: 0;
   line-height: 1;
-  filter: drop-shadow(0 1px 1px #fff);
+  pointer-events: none;
+}
+
+.cp-pin-icon {
+  position: absolute;
+  left: -11px;
+  top: -30px;
+  width: 22px;
+  height: 30px;
+  fill: #a93428;
+  stroke: #fff;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 1px 2px #0007);
+  pointer-events: auto;
+}
+
+.cp-pin-icon circle {
+  fill: #fff;
+  stroke: none;
+}
+
+.cp-map-stage.can-edit[data-active-tool="select"] .cp-pin-icon {
+  cursor: grab;
+}
+
+.cp-map-stage:not(.can-edit) .cp-pin-icon {
   pointer-events: none;
 }
 
 .cp-pin-label {
+  position: absolute;
+  left: 13px;
+  top: -30px;
   max-width: 180px;
+  overflow: hidden;
   padding: 3px 6px;
   border: 1px solid #b78a50;
   border-radius: 3px;
   background: #fff9e9;
   color: #332d25;
   font: 600 12px/1.2 var(--font-primary, sans-serif);
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
@@ -275,8 +346,38 @@
   resize: vertical;
 }
 
-.cp-annotation button {
+.cp-annotation > button {
   width: 100%;
+}
+
+.cp-card-actions {
+  display: flex;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.cp-annotation button.cp-icon {
+  min-height: 24px;
+  padding: 2px 6px;
+  border-color: transparent;
+  background: transparent;
+  color: #6b7069;
+}
+
+.cp-annotation input[data-edit-title] {
+  box-sizing: border-box;
+  width: 100%;
+  height: 30px;
+  font-weight: 700;
+}
+
+.cp-row {
+  display: flex;
+  gap: 5px;
+}
+
+.cp-row button {
+  flex: 1;
 }
 
 .cp-no-annotations {
