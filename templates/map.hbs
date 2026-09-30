@@ -1,0 +1,66 @@
+<section class="cp-layout">
+  <main class="cp-workspace">
+    {{#if isGM}}
+    <div class="cp-toolbar">
+      <button type="button" data-action="choose-image" title="Importer une image"><i class="fa-solid fa-upload"></i><span>Importer</span></button>
+      <input type="file" accept="image/*" data-image-file hidden>
+      <input type="url" data-image-url placeholder="Ou coller le chemin d'une image" aria-label="Chemin de l'image">
+      <button type="button" data-action="set-image-url" title="Utiliser ce chemin"><i class="fa-solid fa-arrow-right"></i></button>
+      <span class="cp-divider"></span>
+      <input type="text" data-annotation-title placeholder="Titre de l'annotation" aria-label="Titre de l'annotation">
+      <input type="text" data-annotation-description placeholder="Description (facultative)" aria-label="Description">
+      <button type="button" data-tool="pin" class="{{#if (eq selectedTool 'pin')}}is-active{{/if}}" title="Placer une épingle"><i class="fa-solid fa-location-dot"></i><span>Épingle</span></button>
+      <button type="button" data-tool="area" class="{{#if (eq selectedTool 'area')}}is-active{{/if}}" title="Dessiner une zone libre"><i class="fa-solid fa-draw-polygon"></i><span>Zone</span></button>
+      <button type="button" data-tool="select" title="Désactiver le dessin"><i class="fa-solid fa-arrow-pointer"></i></button>
+    </div>
+    {{/if}}
+
+    <div class="cp-map-frame">
+      {{#if hasImage}}
+      <div class="cp-map-stage {{#if isGM}}can-edit{{/if}}" data-tool="{{selectedTool}}">
+        <img class="cp-map-image" src="{{image}}" alt="Carte" draggable="false">
+        <svg class="cp-drawing-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
+          {{#each annotations}}
+            {{#if (eq this.type 'area')}}
+            <polygon points="{{this.points}}" class="cp-area-shape"></polygon>
+            {{/if}}
+          {{/each}}
+          <polyline data-drawing-preview class="cp-area-shape cp-drawing-preview" points=""></polyline>
+        </svg>
+        {{#each annotations}}
+          {{#if (eq this.type 'pin')}}
+          <span class="cp-pin" style="left:{{this.left}};top:{{this.top}}" title="{{this.title}}"><i class="fa-solid fa-location-dot"></i><span class="cp-pin-label">{{this.title}}</span></span>
+          {{/if}}
+        {{/each}}
+      </div>
+      {{else}}
+      <div class="cp-empty-state">
+        <i class="fa-regular fa-map"></i>
+        {{#if isGM}}<p>Importez une image pour commencer.</p>{{else}}<p>Le MJ n'a pas encore ajouté de carte.</p>{{/if}}
+      </div>
+      {{/if}}
+    </div>
+  </main>
+
+  <aside class="cp-notes-panel">
+    <header><span>Annotations</span><span class="cp-count">{{annotations.length}}</span></header>
+    <div class="cp-annotation-list">
+      {{#each annotations}}
+      <article class="cp-annotation {{this.type}}">
+        <div class="cp-annotation-heading">
+          <i class="fa-solid {{#if (eq this.type 'pin')}}fa-location-dot{{else}}fa-draw-polygon{{/if}}"></i>
+          <strong>{{this.title}}</strong>
+        </div>
+        {{#if this.description}}<p class="cp-description">{{this.description}}</p>{{/if}}
+        {{#each this.comments}}
+        <div class="cp-comment"><p>{{this.text}}</p><small>{{this.author}}</small></div>
+        {{/each}}
+        <textarea data-comment="{{this.id}}" rows="2" placeholder="Votre commentaire dans le journal…" aria-label="Commentaire sur {{this.title}}"></textarea>
+        <button type="button" data-action="save-comment" data-annotation-id="{{this.id}}"><i class="fa-solid fa-book-journal-whills"></i><span>Ajouter au journal</span></button>
+      </article>
+      {{else}}
+      <p class="cp-no-annotations">Aucune annotation pour le moment.</p>
+      {{/each}}
+    </div>
+  </aside>
+</section>
