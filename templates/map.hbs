@@ -2,10 +2,12 @@
   <main class="cp-workspace">
     <nav class="cp-map-tabs" aria-label="Cartes">
       {{#each maps}}
-      <button type="button" class="cp-map-tab {{#if this.active}}is-active{{/if}}" data-action="select-map" data-map-id="{{this.id}}">{{this.name}}</button>
+      <button type="button" class="cp-map-tab {{#if this.active}}is-active{{/if}} {{#if this.hidden}}is-hidden{{/if}}" data-action="select-map" data-map-id="{{this.id}}" {{#if this.hidden}}title="Cachée aux joueurs"{{/if}}>
+        {{#if this.hidden}}<i class="fa-solid fa-eye-slash"></i>{{/if}}{{this.name}}
+      </button>
       {{/each}}
       {{#if isGM}}
-      <button type="button" class="cp-map-tab cp-map-add" data-action="add-map" title="Ajouter une carte"><i class="fa-solid fa-plus"></i><span>Carte</span></button>
+      <button type="button" class="cp-map-tab cp-map-add" data-action="add-map" title="Ajouter une carte (cachée aux joueurs par défaut)"><i class="fa-solid fa-plus"></i><span>Carte</span></button>
       {{/if}}
     </nav>
 
@@ -18,13 +20,20 @@
         <input type="file" accept="image/*" data-image-file hidden>
         <input type="text" data-image-url placeholder="ou chemin / URL d'image" aria-label="Chemin de l'image">
         <button type="button" data-action="set-image-url" title="Utiliser ce chemin"><i class="fa-solid fa-arrow-right"></i></button>
+        {{#if map.hidden}}
+        <button type="button" class="cp-warn" data-action="toggle-map-hidden" title="Cette carte est cachée aux joueurs. Cliquer pour la rendre visible."><i class="fa-solid fa-eye-slash"></i><span>Cachée</span></button>
+        {{else}}
+        <button type="button" data-action="toggle-map-hidden" title="Cette carte est visible par les joueurs. Cliquer pour la cacher."><i class="fa-solid fa-eye"></i><span>Visible</span></button>
+        {{/if}}
+        <button type="button" data-action="show-players" title="Ouvrir cette carte chez tous les joueurs connectés (la rend visible si besoin)"><i class="fa-solid fa-users"></i><span>Montrer</span></button>
         <button type="button" data-action="delete-map" class="cp-danger" title="Supprimer cette carte"><i class="fa-solid fa-trash"></i></button>
       </div>
       {{#if hasImage}}
       <div class="cp-group">
         <input type="text" data-annotation-title value="{{draft.title}}" placeholder="Titre de l'annotation" aria-label="Titre de l'annotation">
         <input type="text" data-annotation-description value="{{draft.description}}" placeholder="Description (facultative)" aria-label="Description">
-        <button type="button" data-tool="select" class="{{#if (eq selectedTool 'select')}}is-active{{/if}}" title="Sélection : faire glisser une épingle pour la déplacer"><i class="fa-solid fa-arrow-pointer"></i></button>
+        <button type="button" data-action="toggle-draft-secret" class="{{#if draft.hidden}}is-active cp-warn{{/if}}" title="Secret : les prochaines annotations ne seront visibles que par le MJ"><i class="fa-solid {{#if draft.hidden}}fa-user-secret{{else}}fa-eye{{/if}}"></i><span>{{#if draft.hidden}}Secret{{else}}Public{{/if}}</span></button>
+        <button type="button" data-tool="select" class="{{#if (eq selectedTool 'select')}}is-active{{/if}}" title="Sélection : glisser la carte pour la déplacer, glisser une épingle pour la repositionner"><i class="fa-solid fa-arrow-pointer"></i></button>
         <button type="button" data-tool="pin" class="{{#if (eq selectedTool 'pin')}}is-active{{/if}}" title="Placer une épingle"><i class="fa-solid fa-location-dot"></i><span>Épingle</span></button>
         <button type="button" data-tool="area" class="{{#if (eq selectedTool 'area')}}is-active{{/if}}" title="Dessiner une zone libre"><i class="fa-solid fa-draw-polygon"></i><span>Zone</span></button>
       </div>
@@ -33,33 +42,40 @@
     {{/if}}
     {{/if}}
 
-    <div class="cp-map-frame">
+    <div class="cp-map-frame" data-active-tool="{{selectedTool}}">
       {{#if hasImage}}
       <div class="cp-map-stage {{#if isGM}}can-edit{{/if}}" data-active-tool="{{selectedTool}}">
         <img class="cp-map-image" src="{{map.image}}" alt="{{map.name}}" draggable="false">
         <svg class="cp-drawing-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
           {{#each annotations}}
             {{#if (eq this.type 'area')}}
-            <polygon points="{{this.points}}" class="cp-area-shape"><title>{{this.title}}</title></polygon>
+            <polygon points="{{this.points}}" class="cp-area-shape {{#if this.hidden}}is-secret{{/if}}" data-annotation-id="{{this.id}}"></polygon>
             {{/if}}
           {{/each}}
           <polyline data-drawing-preview class="cp-area-shape cp-drawing-preview" points=""></polyline>
         </svg>
         {{#each annotations}}
           {{#if (eq this.type 'pin')}}
-          <span class="cp-pin" data-annotation-id="{{this.id}}" style="left:{{this.left}};top:{{this.top}}" title="{{this.title}}">
+          <span class="cp-pin {{#if this.hidden}}is-secret{{/if}}" data-annotation-id="{{this.id}}" style="left:{{this.left}};top:{{this.top}}" title="{{this.title}}">
             <svg class="cp-pin-icon" viewBox="0 0 24 32" aria-hidden="true"><path d="M12 32S0 18.5 0 12a12 12 0 0 1 24 0c0 6.5-12 20-12 20z"/><circle cx="12" cy="12" r="4.5"/></svg>
-            <span class="cp-pin-label">{{this.title}}</span>
+            <span class="cp-pin-label">{{#if this.hidden}}<i class="fa-solid fa-user-secret"></i> {{/if}}{{this.title}}</span>
           </span>
+          {{else}}
+          <span class="cp-area-label {{#if this.hidden}}is-secret{{/if}}" data-annotation-id="{{this.id}}" style="left:{{this.left}};top:{{this.top}}" title="{{this.title}}">{{#if this.hidden}}<i class="fa-solid fa-user-secret"></i> {{/if}}{{this.title}}</span>
           {{/if}}
         {{/each}}
+      </div>
+      <div class="cp-zoom-controls">
+        <button type="button" data-action="zoom-out" title="Dézoomer"><i class="fa-solid fa-minus"></i></button>
+        <button type="button" data-action="zoom-reset" title="Afficher toute la carte"><span data-zoom-label>100 %</span></button>
+        <button type="button" data-action="zoom-in" title="Zoomer (ou molette)"><i class="fa-solid fa-plus"></i></button>
       </div>
       {{else}}
       <div class="cp-empty-state">
         <i class="fa-regular fa-map"></i>
         {{#if isGM}}
           {{#if hasMaps}}<p>Ajoutez une image à cette carte.</p>{{else}}<p>Créez une carte avec <strong>+ Carte</strong>.</p>{{/if}}
-        {{else}}<p>Le MJ n'a pas encore ajouté de carte.</p>{{/if}}
+        {{else}}<p>Le MJ n'a pas encore partagé de carte.</p>{{/if}}
       </div>
       {{/if}}
     </div>
@@ -69,7 +85,7 @@
     <header><span>Annotations</span><span class="cp-count">{{annotations.length}}</span></header>
     <div class="cp-annotation-list">
       {{#each annotations}}
-      <article class="cp-annotation {{this.type}}" data-annotation-id="{{this.id}}">
+      <article class="cp-annotation {{this.type}} {{#if this.hidden}}is-secret{{/if}}" data-annotation-id="{{this.id}}">
         {{#if this.isEditing}}
         <input type="text" data-edit-title value="{{this.title}}" aria-label="Titre">
         <textarea data-edit-description rows="2" placeholder="Description (facultative)" aria-label="Description">{{this.description}}</textarea>
@@ -78,11 +94,12 @@
           <button type="button" data-action="cancel-edit"><i class="fa-solid fa-xmark"></i><span>Annuler</span></button>
         </div>
         {{else}}
-        <div class="cp-annotation-heading">
+        <div class="cp-annotation-heading" data-action="focus-annotation" data-annotation-id="{{this.id}}" title="Montrer sur la carte">
           <i class="fa-solid {{#if (eq this.type 'pin')}}fa-location-dot{{else}}fa-draw-polygon{{/if}}"></i>
           <strong>{{this.title}}</strong>
           {{#if @root.isGM}}
           <span class="cp-card-actions">
+            <button type="button" class="cp-icon {{#if this.hidden}}cp-warn-icon{{/if}}" data-action="toggle-annotation-secret" data-annotation-id="{{this.id}}" title="{{#if this.hidden}}Secret (MJ uniquement) : cliquer pour révéler aux joueurs{{else}}Visible par les joueurs : cliquer pour rendre secret{{/if}}"><i class="fa-solid {{#if this.hidden}}fa-user-secret{{else}}fa-eye{{/if}}"></i></button>
             <button type="button" class="cp-icon" data-action="edit-annotation" data-annotation-id="{{this.id}}" title="Modifier"><i class="fa-solid fa-pen"></i></button>
             <button type="button" class="cp-icon cp-danger" data-action="delete-annotation" data-annotation-id="{{this.id}}" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
           </span>

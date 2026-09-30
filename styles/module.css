@@ -1,23 +1,6 @@
-#carte-partagee-button {
-  position: fixed;
-  z-index: 60;
-  top: 45%;
-  right: 0;
-  width: 42px;
-  height: 48px;
-  border: 1px solid #cda765;
-  border-right: 0;
-  border-radius: 7px 0 0 7px;
-  background: #263b3a;
-  color: #f2d59a;
-  font-size: 1.25rem;
-  box-shadow: 0 2px 10px #0006;
-  cursor: pointer;
-}
-
-#carte-partagee-button:hover {
-  width: 48px;
-  background: #34504d;
+/* Bouton de l'onglet Journaux */
+.cp-directory-button {
+  flex: 1 0 100%;
 }
 
 .carte-partagee-app .window-content {
@@ -42,59 +25,7 @@
   border-right: 1px solid #c5beb0;
 }
 
-.cp-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  padding: 9px;
-  border-bottom: 1px solid #c5beb0;
-  background: #f6f3ec;
-}
-
-.cp-toolbar button,
-.cp-annotation button {
-  display: inline-flex;
-  min-height: 30px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border: 1px solid #aaa28f;
-  border-radius: 4px;
-  background: #fffdf8;
-  color: #283633;
-  cursor: pointer;
-}
-
-.cp-toolbar button:hover,
-.cp-annotation button:hover,
-.cp-toolbar button.is-active {
-  border-color: #386e68;
-  background: #dce9e4;
-}
-
-.cp-toolbar input {
-  min-width: 100px;
-  max-width: 180px;
-  height: 30px;
-  padding: 4px 7px;
-  border: 1px solid #b8b1a3;
-  border-radius: 3px;
-  background: white;
-}
-
-.cp-group {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.cp-toolbar {
-  column-gap: 18px;
-}
-
+/* Onglets de cartes */
 .cp-map-tabs {
   display: flex;
   flex-wrap: wrap;
@@ -107,7 +38,7 @@
 .cp-map-tab {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   margin-bottom: -1px;
   padding: 5px 12px;
   border: 1px solid #c5beb0;
@@ -124,9 +55,65 @@
   font-weight: 700;
 }
 
+.cp-map-tab.is-hidden {
+  font-style: italic;
+}
+
+.cp-map-tab.is-hidden i {
+  color: #9a6a1c;
+}
+
 .cp-map-add {
   border-style: dashed;
   background: transparent;
+}
+
+/* Barre d'outils */
+.cp-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 9px;
+  border-bottom: 1px solid #c5beb0;
+  background: #f6f3ec;
+}
+
+.cp-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cp-toolbar button,
+.cp-annotation button,
+.cp-zoom-controls button {
+  display: inline-flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border: 1px solid #aaa28f;
+  border-radius: 4px;
+  background: #fffdf8;
+  color: #283633;
+  cursor: pointer;
+}
+
+.cp-toolbar button:hover,
+.cp-annotation button:hover,
+.cp-zoom-controls button:hover,
+.cp-toolbar button.is-active {
+  border-color: #386e68;
+  background: #dce9e4;
+}
+
+.cp-toolbar button.cp-warn {
+  border-color: #c28a2c;
+  background: #fbecc8;
+  color: #6e4a0c;
 }
 
 button.cp-danger:hover {
@@ -135,23 +122,46 @@ button.cp-danger:hover {
   color: #8a2a20;
 }
 
+.cp-toolbar input {
+  min-width: 100px;
+  max-width: 180px;
+  height: 30px;
+  padding: 4px 7px;
+  border: 1px solid #b8b1a3;
+  border-radius: 3px;
+  background: white;
+}
+
+/* Zone de carte : zoom et déplacement */
 .cp-map-frame {
+  position: relative;
   display: grid;
   min-height: 0;
   flex: 1;
   place-items: center;
-  overflow: auto;
+  overflow: hidden;
   padding: 12px;
+  container-type: size;
   background-color: #d7d2c8;
   background-image: radial-gradient(#8a897f3a 0.7px, transparent 0.7px);
   background-size: 12px 12px;
+  touch-action: none;
+}
+
+.cp-map-frame[data-active-tool="select"] {
+  cursor: grab;
+}
+
+.cp-map-frame[data-panning] {
+  cursor: grabbing;
 }
 
 .cp-map-stage {
+  --zoom: 1;
   position: relative;
   width: fit-content;
-  max-width: 100%;
   line-height: 0;
+  transform-origin: 0 0;
   user-select: none;
 }
 
@@ -163,9 +173,28 @@ button.cp-danger:hover {
 .cp-map-image {
   display: block;
   width: auto;
-  max-width: 100%;
-  max-height: calc(100vh - 190px);
+  max-width: calc(100cqw - 24px);
+  max-height: calc(100cqh - 24px);
   object-fit: contain;
+}
+
+.cp-zoom-controls {
+  position: absolute;
+  z-index: 5;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  gap: 3px;
+  padding: 3px;
+  border-radius: 6px;
+  background: #f6f3ecdd;
+  box-shadow: 0 1px 4px #0004;
+  cursor: default;
+}
+
+.cp-zoom-controls button {
+  min-width: 30px;
+  font-variant-numeric: tabular-nums;
 }
 
 .cp-drawing-layer {
@@ -180,9 +209,15 @@ button.cp-danger:hover {
 .cp-area-shape {
   fill: #e8a54b40;
   stroke: #c35e37;
-  stroke-width: 4;
+  stroke-width: 3;
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
+}
+
+.cp-area-shape.is-secret {
+  fill: #7a6a9a33;
+  stroke: #6c5a91;
+  stroke-dasharray: 6 4;
 }
 
 .cp-drawing-preview {
@@ -190,13 +225,20 @@ button.cp-danger:hover {
   stroke-dasharray: 7 5;
 }
 
-/* Le conteneur fait 0x0 : son coin haut-gauche est exactement le point cliqué. */
-.cp-pin {
+/* Épingles et étiquettes : taille constante quel que soit le zoom. */
+.cp-pin,
+.cp-area-label {
   position: absolute;
   z-index: 2;
+  line-height: 1;
+}
+
+/* Le conteneur fait 0x0 : son coin haut-gauche est exactement le point visé. */
+.cp-pin {
   width: 0;
   height: 0;
-  line-height: 1;
+  transform: scale(calc(1 / var(--zoom)));
+  transform-origin: 0 0;
   pointer-events: none;
 }
 
@@ -210,6 +252,7 @@ button.cp-danger:hover {
   stroke: #fff;
   stroke-width: 1.5;
   filter: drop-shadow(0 1px 2px #0007);
+  cursor: pointer;
   pointer-events: auto;
 }
 
@@ -222,14 +265,13 @@ button.cp-danger:hover {
   cursor: grab;
 }
 
-.cp-map-stage:not(.can-edit) .cp-pin-icon {
-  pointer-events: none;
+.cp-pin.is-secret .cp-pin-icon {
+  fill: #6c5a91;
+  opacity: 0.8;
 }
 
-.cp-pin-label {
-  position: absolute;
-  left: 13px;
-  top: -30px;
+.cp-pin-label,
+.cp-area-label {
   max-width: 180px;
   overflow: hidden;
   padding: 3px 6px;
@@ -240,6 +282,58 @@ button.cp-danger:hover {
   font: 600 12px/1.2 var(--font-primary, sans-serif);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.cp-pin-label {
+  position: absolute;
+  left: 13px;
+  top: -30px;
+  pointer-events: none;
+}
+
+.cp-area-label {
+  transform: scale(calc(1 / var(--zoom))) translate(-50%, -50%);
+  transform-origin: 0 0;
+  border-color: #d18a36;
+  background: #fff9e9e6;
+  cursor: pointer;
+}
+
+.cp-pin.is-secret .cp-pin-label,
+.cp-area-label.is-secret {
+  border-style: dashed;
+  border-color: #6c5a91;
+  background: #efeaf7;
+}
+
+.cp-map-stage:not([data-active-tool="select"]) .cp-pin-icon,
+.cp-map-stage:not([data-active-tool="select"]) .cp-area-label {
+  pointer-events: none;
+}
+
+/* Mise en évidence */
+@keyframes cp-flash {
+  0%, 100% { filter: none; }
+  25%, 75% { filter: drop-shadow(0 0 6px #ffd23c) drop-shadow(0 0 2px #ffd23c) brightness(1.15); }
+}
+
+@keyframes cp-flash-card {
+  0%, 100% { box-shadow: none; }
+  30%, 70% { box-shadow: 0 0 0 3px #ffd23c; }
+}
+
+.cp-pin.cp-flash .cp-pin-icon,
+.cp-area-label.cp-flash,
+.cp-area-shape.cp-flash {
+  animation: cp-flash 0.8s ease-in-out 2;
+}
+
+.cp-area-shape.cp-flash {
+  stroke-width: 6;
+}
+
+.cp-annotation.cp-flash {
+  animation: cp-flash-card 0.8s ease-in-out 2;
 }
 
 .cp-empty-state {
@@ -255,6 +349,7 @@ button.cp-danger:hover {
   font-size: 52px;
 }
 
+/* Panneau des annotations */
 .cp-notes-panel {
   display: flex;
   min-height: 0;
@@ -304,11 +399,23 @@ button.cp-danger:hover {
   border-left-color: #d18a36;
 }
 
+.cp-annotation.is-secret {
+  border-style: dashed;
+  border-left: 3px solid #6c5a91;
+  background: #f7f4fb;
+}
+
 .cp-annotation-heading {
   display: flex;
   align-items: center;
   gap: 7px;
   color: #33433f;
+  cursor: pointer;
+}
+
+.cp-annotation-heading strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .cp-description {
@@ -329,22 +436,23 @@ button.cp-danger:hover {
   resize: vertical;
 }
 
-.cp-annotation > button {
-  width: 100%;
-}
-
 .cp-card-actions {
   display: flex;
-  gap: 3px;
+  flex-shrink: 0;
+  gap: 1px;
   margin-left: auto;
 }
 
 .cp-annotation button.cp-icon {
   min-height: 24px;
-  padding: 2px 6px;
+  padding: 2px 5px;
   border-color: transparent;
   background: transparent;
   color: #6b7069;
+}
+
+.cp-annotation button.cp-warn-icon {
+  color: #6c5a91;
 }
 
 .cp-annotation input[data-edit-title] {
@@ -387,9 +495,5 @@ button.cp-danger:hover {
   .cp-toolbar input {
     flex: 1 1 120px;
     max-width: none;
-  }
-
-  .cp-map-image {
-    max-height: 50vh;
   }
 }
