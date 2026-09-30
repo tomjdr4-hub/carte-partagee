@@ -11,7 +11,7 @@ Module autonome pour Foundry VTT v14. Il affiche un bouton fixe à droite de l'�
 
 ## Installation locale
 
-Copiez le dossier `Carte_Partagee` dans `Data/modules/`, puis activez **Carte partagée** dans les paramètres de modules du monde. L'import d'image écrit dans `Data/worlds/<monde>/`; le serveur Foundry doit pouvoir y écrire.
+Copiez le dossier `carte-partagee` dans `Data/modules/`, puis activez **Carte partagée** dans les paramètres de modules du monde. L'import d'image écrit dans `Data/worlds/<monde>/`; le serveur Foundry doit pouvoir y écrire.
 
 Installation depuis Foundry : **Modules complémentaires** > **Installer un module**, puis collez le manifeste :
 

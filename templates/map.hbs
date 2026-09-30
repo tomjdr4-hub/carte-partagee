@@ -17,7 +17,7 @@
 
     <div class="cp-map-frame">
       {{#if hasImage}}
-      <div class="cp-map-stage {{#if isGM}}can-edit{{/if}}" data-tool="{{selectedTool}}">
+      <div class="cp-map-stage {{#if isGM}}can-edit{{/if}}" data-active-tool="{{selectedTool}}">
         <img class="cp-map-image" src="{{image}}" alt="Carte" draggable="false">
         <svg class="cp-drawing-layer" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true">
           {{#each annotations}}

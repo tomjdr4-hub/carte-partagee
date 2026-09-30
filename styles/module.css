@@ -111,8 +111,8 @@
   user-select: none;
 }
 
-.cp-map-stage.can-edit[data-tool="pin"],
-.cp-map-stage.can-edit[data-tool="area"] {
+.cp-map-stage.can-edit[data-active-tool="pin"],
+.cp-map-stage.can-edit[data-active-tool="area"] {
   cursor: crosshair;
 }
 

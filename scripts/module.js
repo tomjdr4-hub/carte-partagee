@@ -82,7 +82,7 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   async #onClick(event) {
-    const toolButton = event.target.closest("[data-tool]");
+    const toolButton = event.target.closest("button[data-tool]");
     if (toolButton && game.user.isGM) {
       this.tool = toolButton.dataset.tool;
       this.render();
@@ -113,7 +113,7 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     try {
       const folder = `worlds/${game.world.id}`;
-      const result = await FilePicker.upload("data", folder, file);
+      const result = await foundry.applications.apps.FilePicker.implementation.upload("data", folder, file);
       await this.#setImage(result.path);
       ui.notifications.info("Carte importée.");
     } catch (error) {
@@ -228,7 +228,7 @@ let mapApp;
 
 function openMap() {
   mapApp ??= new CartePartageeApp();
-  mapApp.render(true);
+  mapApp.render({ force: true });
 }
 
 function createButton() {
