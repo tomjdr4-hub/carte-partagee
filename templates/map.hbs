@@ -97,23 +97,17 @@
         <div class="cp-annotation-heading" data-action="focus-annotation" data-annotation-id="{{this.id}}" title="Montrer sur la carte">
           <i class="fa-solid {{#if (eq this.type 'pin')}}fa-location-dot{{else}}fa-draw-polygon{{/if}}"></i>
           <strong>{{this.title}}</strong>
-          {{#if @root.isGM}}
           <span class="cp-card-actions">
+            <button type="button" class="cp-icon cp-note-icon {{#if this.hasNote}}has-note{{/if}}" data-action="open-note" data-annotation-id="{{this.id}}" title="{{#if this.hasNote}}Ouvrir mes notes (visibles par moi et le MJ){{else}}Prendre des notes dans mon journal (visibles par moi et le MJ){{/if}}"><i class="fa-solid fa-book-open"></i></button>
+            {{#if @root.isGM}}
             <button type="button" class="cp-icon {{#if this.hidden}}cp-warn-icon{{/if}}" data-action="toggle-annotation-secret" data-annotation-id="{{this.id}}" title="{{#if this.hidden}}Secret (MJ uniquement) : cliquer pour révéler aux joueurs{{else}}Visible par les joueurs : cliquer pour rendre secret{{/if}}"><i class="fa-solid {{#if this.hidden}}fa-user-secret{{else}}fa-eye{{/if}}"></i></button>
             <button type="button" class="cp-icon" data-action="edit-annotation" data-annotation-id="{{this.id}}" title="Modifier"><i class="fa-solid fa-pen"></i></button>
             <button type="button" class="cp-icon cp-danger" data-action="delete-annotation" data-annotation-id="{{this.id}}" title="Supprimer"><i class="fa-solid fa-trash"></i></button>
+            {{/if}}
           </span>
-          {{/if}}
         </div>
         {{#if this.description}}<p class="cp-description">{{this.description}}</p>{{/if}}
         {{/if}}
-        <textarea data-comment="{{this.id}}" rows="2" placeholder="Ma note personnelle (visible par moi et le MJ)…" aria-label="Note sur {{this.title}}">{{this.commentDraft}}</textarea>
-        <div class="cp-row">
-          <button type="button" data-action="save-comment" data-annotation-id="{{this.id}}"><i class="fa-solid fa-book-journal-whills"></i><span>Ajouter à mes notes</span></button>
-          {{#if this.hasNote}}
-          <button type="button" class="cp-open-note" data-action="open-note" data-annotation-id="{{this.id}}" title="Ouvrir ma note dans le journal"><i class="fa-solid fa-book-open"></i></button>
-          {{/if}}
-        </div>
       </article>
       {{else}}
       <p class="cp-no-annotations">Aucune annotation pour le moment.</p>

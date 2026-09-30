@@ -121,7 +121,6 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
   views = {};
   /** Saisies en cours, conservées entre deux rendus. */
   draft = { title: "", description: "", hidden: false };
-  commentDrafts = {};
 
   #currentMap(state) {
     const maps = visibleMaps(state);
@@ -148,7 +147,6 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
           top: `${anchor.y / 10}%`,
           points: annotation.points?.map(point => `${point.x},${point.y}`).join(" ") ?? "",
           hasNote: Boolean(getNotePage(annotation.id)),
-          commentDraft: this.commentDrafts[annotation.id] ?? "",
           isEditing: this.editingId === annotation.id
         };
       });
@@ -184,7 +182,6 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const target = event.target;
     if (target.matches("[data-annotation-title]")) this.draft.title = target.value;
     else if (target.matches("[data-annotation-description]")) this.draft.description = target.value;
-    else if (target.matches("[data-comment]")) this.commentDrafts[target.dataset.comment] = target.value;
   }
 
   async #onClick(event) {
@@ -211,7 +208,6 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
       case "zoom-out": return this.#zoomBy(1 / 1.4);
       case "zoom-reset": return this.#resetView();
       case "focus-annotation": return this.#focusAnnotation(annotationId);
-      case "save-comment": return this.#saveNote(annotationId);
       case "open-note": return this.#openNote(annotationId);
     }
     if (!game.user.isGM) return;
@@ -585,15 +581,17 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
       : `« ${map.name} » s'ouvre chez les joueurs.`);
   }
 
-  async #saveNote(annotationId) {
-    const map = this.#currentMap(getState());
-    const annotation = map?.annotations.find(item => item.id === annotationId);
-    const field = this.element.querySelector(`[data-comment="${CSS.escape(annotationId)}"]`);
-    const text = field?.value.trim();
-    if (!annotation || !text) {
-      ui.notifications.warn("Écrivez une note avant de l'enregistrer.");
+  /** Ouvre la page de notes du joueur pour cette annotation, en la créant au besoin. */
+  async #openNote(annotationId) {
+    const existing = getNotePage(annotationId);
+    if (existing) {
+      existing.parent.sheet.render({ force: true, pageId: existing.id });
       return;
     }
+
+    const map = this.#currentMap(getState());
+    const annotation = map?.annotations.find(item => item.id === annotationId);
+    if (!annotation) return;
 
     let journal = getNotesJournal();
     if (!journal && (game.user.isGM || game.user.can("JOURNAL_CREATE"))) journal = await createNotesJournal(game.user);
@@ -602,33 +600,18 @@ class CartePartageeApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return;
     }
 
-    const date = new Date().toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
-    const paragraph = `<p><em>${date}</em><br>${escapeHTML(text).replaceAll("\n", "<br>")}</p>`;
-
     try {
-      const page = getNotePage(annotationId);
-      if (page) {
-        await page.update({ "text.content": `${page.text.content ?? ""}${paragraph}` });
-      } else {
-        await journal.createEmbeddedDocuments("JournalEntryPage", [{
-          name: `${annotation.title} (${map.name})`,
-          type: "text",
-          text: { format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML, content: paragraph },
-          flags: { [MODULE_ID]: { annotationId, mapId: map.id } }
-        }]);
-      }
-      delete this.commentDrafts[annotationId];
-      ui.notifications.info(`Note ajoutée à « ${journal.name} ».`);
-      this.render();
+      const [page] = await journal.createEmbeddedDocuments("JournalEntryPage", [{
+        name: `${annotation.title} (${map.name})`,
+        type: "text",
+        text: { format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML, content: "" },
+        flags: { [MODULE_ID]: { annotationId, mapId: map.id } }
+      }]);
+      page.sheet.render({ force: true }); // ouvre directement l'éditeur de la page
     } catch (error) {
-      console.error(`${MODULE_ID} | Échec d'enregistrement de la note`, error);
-      ui.notifications.error("Impossible d'enregistrer la note dans votre journal.");
+      console.error(`${MODULE_ID} | Échec de création de la page de notes`, error);
+      ui.notifications.error("Impossible de créer la page dans votre journal.");
     }
-  }
-
-  #openNote(annotationId) {
-    const page = getNotePage(annotationId);
-    if (page) page.parent.sheet.render({ force: true, pageId: page.id });
   }
 }
 

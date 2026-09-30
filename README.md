@@ -10,7 +10,7 @@ Module autonome pour Foundry VTT v14. Il ouvre une fenêtre contenant des cartes
 - **Annotations secrètes** : visibles uniquement par le MJ, révélables d'un clic (icône œil sur la fiche).
 - **Zoom et déplacement** : molette ou boutons − / + pour zoomer, glisser pour déplacer (clic molette avec les outils de dessin), *100 %* pour revenir à la vue d'ensemble.
 - Le nom des zones est affiché sur la carte. Cliquer sur une fiche la fait clignoter sur la carte (et centre la vue si on est zoomé) ; cliquer sur une épingle ou une zone met sa fiche en évidence.
-- **Notes personnelles** : chaque joueur écrit ses notes dans son propre journal **Notes de <joueur>** (dossier *Carte partagée*), une page par annotation. Seuls le joueur et le MJ peuvent les lire ; elles ne s'affichent pas sur la carte.
+- **Notes personnelles** : l'icône carnet d'une fiche ouvre, dans le journal **Notes de <joueur>** (dossier *Carte partagée*), la page de notes de cette annotation. Elle est créée au premier clic et s'ouvre directement en écriture. Seuls le joueur et le MJ peuvent la lire ; rien ne s'affiche sur la carte.
 
 > Les éléments cachés ne sont pas affichés aux joueurs, mais ils font partie des données du monde envoyées à tous les clients : un joueur qui fouille la console du navigateur pourrait les lire.
 
@@ -34,4 +34,4 @@ Aucune permission Foundry à modifier : quand le MJ se connecte, le module crée
 2. En tant que MJ, cliquer sur **+ Carte**, la renommer si besoin, importer une image, puis la rendre **Visible** ou cliquer sur **Montrer**.
 3. Renseigner le titre (et facultativement la description), choisir *Public* ou *Secret*, puis **Épingle** et cliquer sur la carte, ou **Zone** et dessiner à main levée.
 4. Pour corriger une annotation : crayon (titre, description) ou corbeille dans le panneau de droite ; glisser une épingle pour la déplacer.
-5. Les joueurs écrivent leur note sous l'annotation souhaitée et cliquent sur **Ajouter à mes notes**. Le bouton livre ouvre directement la page correspondante dans leur journal.
+5. Les joueurs cliquent sur l'icône carnet d'une annotation et écrivent directement dans leur journal. L'icône est colorée quand une note existe déjà.

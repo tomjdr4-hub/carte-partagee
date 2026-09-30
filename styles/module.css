@@ -419,7 +419,7 @@ button.cp-danger:hover {
 }
 
 .cp-description {
-  margin: 5px 0 8px;
+  margin: 5px 0 0;
   color: #5c625c;
   font-size: 0.85rem;
 }
@@ -471,8 +471,8 @@ button.cp-danger:hover {
   flex: 1;
 }
 
-.cp-row button.cp-open-note {
-  flex: 0 0 auto;
+.cp-annotation button.cp-note-icon.has-note {
+  color: #386e68;
 }
 
 .cp-no-annotations {
